@@ -1,6 +1,6 @@
 package main
 
-type DictionaryErr string
+type Err string
 
 const (
 	Success          = "Ok"
@@ -16,19 +16,35 @@ const (
 )
 
 const (
-	ErrNotFound                 = DictionaryErr("Data type not found")
-	ErrMedicalPlanNotMatch      = DictionaryErr("Medical plan does not match in both datasets")
-	ErrDentalPlanNotMatch       = DictionaryErr("Dental plan does not match in both datasets")
-	ErrEmployeeNameNotMatch     = DictionaryErr("Employee name does not match in both datasets")
-	ErrLanguageNotMatch         = DictionaryErr("Language does not match in both datasets")
-	ErrClaimantNameNotMatch     = DictionaryErr("Claimant name does not match in both datasets")
-	ErrRelationshipTypeNotMatch = DictionaryErr("Relationship type does not match in both datasets")
-	ErrGenderTypeNotMatch       = DictionaryErr("Gender type does not match in both datasets")
-	ErrEffectiveDateNotMatch    = DictionaryErr("Effective date does not match in both datasets")
-	ErrTerminationDateNotMatch  = DictionaryErr("Termination date does not match in both datasets")
+	ErrNotFound                 = Err("Data type not found")
+	ErrMedicalPlanNotMatch      = Err("Medical plan does not match in both datasets")
+	ErrDentalPlanNotMatch       = Err("Dental plan does not match in both datasets")
+	ErrEmployeeNameNotMatch     = Err("Employee name does not match in both datasets")
+	ErrLanguageNotMatch         = Err("Language does not match in both datasets")
+	ErrClaimantNameNotMatch     = Err("Claimant name does not match in both datasets")
+	ErrRelationshipTypeNotMatch = Err("Relationship type does not match in both datasets")
+	ErrGenderTypeNotMatch       = Err("Gender type does not match in both datasets")
+	ErrEffectiveDateNotMatch    = Err("Effective date does not match in both datasets")
+	ErrTerminationDateNotMatch  = Err("Termination date does not match in both datasets")
 )
 
+var Errors = map[string]Err{
+	MedicalPlan:      ErrMedicalPlanNotMatch,
+	DentalPlan:       ErrDentalPlanNotMatch,
+	EmployeeName:     ErrEmployeeNameNotMatch,
+	Language:         ErrLanguageNotMatch,
+	ClaimantName:     ErrClaimantNameNotMatch,
+	RelationshipType: ErrRelationshipTypeNotMatch,
+	Gender:           ErrGenderTypeNotMatch,
+	EffectiveDate:    ErrEffectiveDateNotMatch,
+	TerminationDate:  ErrTerminationDateNotMatch,
+}
+
 func VerifyData(valueOne, valoueTwo string, dataType string) (string, error) {
+	_, found := Errors[dataType]
+	if !found {
+		return "", ErrNotFound
+	}
 	if valueOne == valoueTwo {
 		return Success, nil
 	}
@@ -36,34 +52,13 @@ func VerifyData(valueOne, valoueTwo string, dataType string) (string, error) {
 }
 
 func getErrorMessage(dataType string) error {
-	switch dataType {
-	case MedicalPlan:
-		return ErrMedicalPlanNotMatch
-	case DentalPlan:
-		return ErrDentalPlanNotMatch
-	case EmployeeName:
-		return ErrEmployeeNameNotMatch
-	case Language:
-		return ErrLanguageNotMatch
-	case ClaimantName:
-		return ErrClaimantNameNotMatch
-	case RelationshipType:
-		return ErrRelationshipTypeNotMatch
-	case Gender:
-		return ErrGenderTypeNotMatch
-	case EffectiveDate:
-		return ErrEffectiveDateNotMatch
-	case TerminationDate:
-		return ErrTerminationDateNotMatch
-	default:
-		return ErrNotFound
-	}
+	return Errors[dataType]
 }
 
 func main() {
 
 }
 
-func (e DictionaryErr) Error() string {
+func (e Err) Error() string {
 	return string(e)
 }
