@@ -206,39 +206,28 @@ func addTotal(column int) {
 	switch column {
 	case 1:
 		totalErrMP++
-		fmt.Println("totalErrMP: ", totalErrMP)
 	case 2:
 		totalErrDP++
-		fmt.Println("totalErrDP: ", totalErrDP)
 	case 3:
 		totalErrEN++
-		fmt.Println("totalErrEN: ", totalErrEN)
 	case 4:
 		totalErrL++
-		fmt.Println("totalErrL: ", totalErrL)
 	case 5:
 		totalErrCN++
-		fmt.Println("totalErrCN: ", totalErrCN)
 	case 6:
 		totalErrRT++
-		fmt.Println("totalErrRT: ", totalErrRT)
 	case 7:
 		totalErrG++
-		fmt.Println("totalErrG: ", totalErrG)
 	case 8:
 		totalErrED++
-		fmt.Println("totalErrED: ", totalErrED)
 	case 9:
 		totalErrTD++
-		fmt.Println("totalErrTD: ", totalErrTD)
 	}
 }
 
 func GenerateRowTotals() ([]string, []string) {
 	totalsNamesRow := []string{TotalErrors + MedicalPlan, TotalErrors + DentalPlan, TotalErrors + EmployeeName, TotalErrors + Language, TotalErrors + ClaimantName, TotalErrors + RelationshipType, TotalErrors + Gender, TotalErrors + EffectiveDate, TotalErrors + TerminationDate}
 	totalsRow := []string{stringFormatTotal(totalErrMP), stringFormatTotal(totalErrDP), stringFormatTotal(totalErrEN), stringFormatTotal(totalErrL), stringFormatTotal(totalErrCN), stringFormatTotal(totalErrRT), stringFormatTotal(totalErrG), stringFormatTotal(totalErrED), stringFormatTotal(totalErrTD)}
-	fmt.Println(totalErrEN)
-	fmt.Println(totalsRow)
 	return totalsNamesRow, totalsRow
 }
 
@@ -279,7 +268,7 @@ func main() {
 	//Test data set
 	//err := CheckCSV("testOne.csv", "testTwo.csv")
 	//Official data set
-	err := CheckCSV("clientAData.csv", "ourData.csv")
+	err := CheckCSV("clientData.csv", "ourData.csv")
 	if err != nil {
 		fmt.Println(err)
 	}
