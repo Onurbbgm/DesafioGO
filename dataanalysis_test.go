@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -21,6 +22,25 @@ func TestCheckCSV(t *testing.T) {
 
 		if err != ErrNumberOfLines {
 			t.Errorf("got %q, want %q", err, ErrNumberOfLines)
+		}
+	})
+	t.Run("file wrong number of lines error", func(t *testing.T) {
+		err := CheckCSV("testNotExisting.csv", "testNumLinesTwo.csv")
+
+		if err == nil {
+			t.Fatalf("Expected an error, got nil")
+		}
+	})
+	t.Run("total errors match", func(t *testing.T) {
+		ResetTotals()
+		err := CheckCSV("testOne.csv", "testTwo.csv")
+		_, got := GenerateRowTotals()
+		want := []string{"9/10", "7/10", "0/10", "7/10", "0/10", "7/10", "6/10", "10/10", "10/10"}
+		if err != nil {
+			t.Fatalf("Got an error %q and error should have been nil", err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v want %v", got, want)
 		}
 	})
 }
