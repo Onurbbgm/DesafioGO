@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -53,12 +54,12 @@ var Errors = map[string]Err{
 }
 
 func CheckCSV() error {
-	csvOne, err := os.Open("testOne.csv")
+	csvOne, err := os.Open("ourData.csv")
 	if err != nil {
 		return err
 	}
 
-	csvTwo, err := os.Open("testTwo.csv")
+	csvTwo, err := os.Open("clientData.csv")
 	if err != nil {
 		return err
 	}
@@ -159,7 +160,10 @@ func getColumn(num int) string {
 }
 
 func main() {
-	CheckCSV()
+	err := CheckCSV()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func (e Err) Error() string {
