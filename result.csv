@@ -1,3 +1,4 @@
+medical_plan,dental_plan,employee_name,language,claimant_name,relationship_type,gender,effective_date,termination_date
 Medical plan does not match in both datasets,Ok,Ok,Language does not match in both datasets,Ok,Ok,Gender type does not match in both datasets,Effective date does not match in both datasets,Termination date does not match in both datasets
 Medical plan does not match in both datasets,Dental plan does not match in both datasets,Ok,Ok,Ok,Relationship type does not match in both datasets,Ok,Effective date does not match in both datasets,Termination date does not match in both datasets
 Ok,Dental plan does not match in both datasets,Ok,Language does not match in both datasets,Ok,Relationship type does not match in both datasets,Gender type does not match in both datasets,Effective date does not match in both datasets,Termination date does not match in both datasets

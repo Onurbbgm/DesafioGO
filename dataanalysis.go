@@ -29,6 +29,7 @@ const (
 const (
 	ErrNotFound                 = Err("Data type not found")
 	ErrColumNumber              = Err("Invalid column number")
+	ErrNumberOfLines            = Err("Files have different number of lines, so can not be compared")
 	ErrMedicalPlanNotMatch      = Err("Medical plan does not match in both datasets")
 	ErrDentalPlanNotMatch       = Err("Dental plan does not match in both datasets")
 	ErrEmployeeNameNotMatch     = Err("Employee name does not match in both datasets")
@@ -53,24 +54,40 @@ var Errors = map[string]Err{
 	TerminationDate:  ErrTerminationDateNotMatch,
 }
 
-func CheckCSV() error {
-	csvOne, err := os.Open("ourData.csv")
-	if err != nil {
-		return err
+func CheckCSV(fileOne, fileTwo string) error {
+	csvOne, errOpen := os.Open(fileOne)
+	if errOpen != nil {
+		return errOpen
 	}
 
-	csvTwo, err := os.Open("clientData.csv")
-	if err != nil {
-		return err
+	csvTwo, errOpen := os.Open(fileTwo)
+	if errOpen != nil {
+		return errOpen
 	}
 
-	resultCSV, err := os.Create("result.csv")
-	if err != nil {
-		return err
+	resultCSV, errCreate := os.Create("result.csv")
+	if errCreate != nil {
+		return errCreate
 	}
 
 	readerOne := csv.NewReader(bufio.NewReader(csvOne))
 	readerTwo := csv.NewReader(bufio.NewReader(csvTwo))
+
+	numLinesOne, err := lineCounter(readerOne)
+	if err != nil {
+		return err
+	}
+	numLinesTwo, err := lineCounter(readerTwo)
+	if err != nil {
+		return err
+	}
+
+	csvOne.Seek(0, io.SeekStart)
+	csvTwo.Seek(0, io.SeekStart)
+
+	if numLinesOne != numLinesTwo {
+		return ErrNumberOfLines
+	}
 
 	defer csvOne.Close()
 	defer csvTwo.Close()
@@ -78,6 +95,9 @@ func CheckCSV() error {
 
 	writer := csv.NewWriter(resultCSV)
 	defer writer.Flush()
+
+	firstRow := []string{MedicalPlan, DentalPlan, EmployeeName, Language, ClaimantName, RelationshipType, Gender, EffectiveDate, TerminationDate}
+	writer.Write(firstRow)
 
 	//Jump first line of both files
 	if _, err := readerOne.Read(); err != nil {
@@ -159,8 +179,29 @@ func getColumn(num int) string {
 	}
 }
 
+func lineCounter(r *csv.Reader) (int, error) {
+	//buf := make([]byte, 32*1024)
+	count := 0
+	//lineSep := []byte{'\n'}
+
+	for {
+		_, err := r.Read()
+		count++
+		switch {
+		case err == io.EOF:
+			return count, nil
+
+		case err != nil:
+			return count, err
+		}
+	}
+}
+
 func main() {
-	err := CheckCSV()
+	//Test data set
+	//err := CheckCSV("testOne.csv", "testTwo.csv")
+	//Official data set
+	err := CheckCSV("clientData.csv", "ourData.csv")
 	if err != nil {
 		fmt.Println(err)
 	}

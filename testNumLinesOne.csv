@@ -1,0 +1,3 @@
+id,medical_plan,dental_plan,employee_name,language,claimant_name,relationship_type,gender,effective_date,termination_date
+5e7cfeb9fc13ae76a9000000,Cassi,MetLife,Milka Hovington,en-CA,Trixy Ostrich,Son,Male,4/21/2019,4/16/2020
+5e7cfeb9fc13ae76a9000001,Cassi,MetLife,Berkly Furnell,fr-CA,Georgi Flaxman,Daughter,Male,6/26/2019,7/15/2020

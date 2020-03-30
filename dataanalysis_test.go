@@ -5,12 +5,24 @@ import (
 )
 
 func TestCheckCSV(t *testing.T) {
-	err := CheckCSV()
-	// want := nil
+	t.Run("file creation success", func(t *testing.T) {
+		err := CheckCSV("testOne.csv", "testTwo.csv")
 
-	if err != nil {
-		t.Fatalf("Got an error %q and error should have been nil", err)
-	}
+		if err != nil {
+			t.Fatalf("Got an error %q and error should have been nil", err)
+		}
+	})
+	t.Run("file wrong number of lines error", func(t *testing.T) {
+		err := CheckCSV("testNumLinesOne.csv", "testNumLinesTwo.csv")
+
+		if err == nil {
+			t.Fatalf("Expected an error, got nil")
+		}
+
+		if err != ErrNumberOfLines {
+			t.Errorf("got %q, want %q", err, ErrNumberOfLines)
+		}
+	})
 }
 
 func TestVerifyData(t *testing.T) {
