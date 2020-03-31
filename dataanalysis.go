@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 )
 
 type Err string
@@ -32,6 +33,7 @@ const (
 	ErrNotFound                 = Err("Data type not found")
 	ErrColumNumber              = Err("Invalid column number")
 	ErrNumberOfLines            = Err("Files have different number of lines, so can not be compared")
+	ErrReadinLines              = Err("Erro when trying to read line")
 	ErrMedicalPlanNotMatch      = Err("Medical plan does not match in both datasets")
 	ErrDentalPlanNotMatch       = Err("Dental plan does not match in both datasets")
 	ErrEmployeeNameNotMatch     = Err("Employee name does not match in both datasets")
@@ -42,6 +44,10 @@ const (
 	ErrEffectiveDateNotMatch    = Err("Effective date does not match in both datasets")
 	ErrTerminationDateNotMatch  = Err("Termination date does not match in both datasets")
 )
+
+// type ResultCSV struct {
+// 	mu sync.Mutex
+// }
 
 //Errors a dictionary for the error for the appropriated column
 var Errors = map[string]Err{
@@ -125,31 +131,92 @@ func CheckCSV(fileOne, fileTwo string) error {
 		return err
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(numLinesOne)
+	var mu = sync.Mutex{}
+	count := 0
 	for {
-		lineOne, err := readerOne.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
-		lineTwo, err := readerTwo.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return err
+		errChan := make(chan error)
+		//done := make(chan bool)
+		// done <- false
+		// done := false
+		errChan = nil
+		go func(w *sync.WaitGroup) {
+			mu.Lock()
+			defer mu.Unlock()
+			lineOne, err := readerOne.Read()
+			if err == io.EOF {
+				fmt.Println("aqui 1")
+				fmt.Println(count)
+				count++
+				fmt.Println(count)
+				errChan <- io.EOF
+				//close(errChan)
+
+				// done = true
+				//close(done)
+				//w.Done()
+				return
+			} else if err != nil {
+				errChan <- nil
+				close(errChan)
+				w.Done()
+				return
+			}
+			// fmt.Println("chegou aqui")
+			lineTwo, err := readerTwo.Read()
+			if err == io.EOF {
+				fmt.Println("aqui 2")
+				fmt.Println(count)
+				errChan <- nil
+				close(errChan)
+				// done <- true
+				// close(done)
+				w.Done()
+				return
+			} else if err != nil {
+				errChan <- err
+				close(errChan)
+				w.Done()
+				return
+			}
+			// fmt.Println("chegou aqui 2")
+			var row []string
+			for i := 1; i <= 9; i++ {
+				//fmt.Println("chegou aqui 3")
+				result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
+				if errData == nil {
+					row = append(row, result)
+				} else {
+					addTotal(i)
+					row = append(row, errData.Error())
+				}
+			}
+			writer.Write(row)
+			//count++
+			//fmt.Println(count)
+			w.Done()
+			//mu.Unlock()
+		}(&wg)
+
+		if errChan != nil {
+			return ErrReadinLines
 		}
 
-		var row []string
-		for i := 1; i <= 9; i++ {
-			result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
-			if errData == nil {
-				row = append(row, result)
-			} else {
-				addTotal(i)
-				row = append(row, errData.Error())
-			}
+		if count == 1 {
+			fmt.Println(count)
+			break
 		}
-		writer.Write(row)
+		// finish := <-done
+		// finish := false
+		// // select {
+		// // case done <- true:
+		// // 	finish = true
+		// // }
+		// if finish {
+		// 	break
+		// }
+		//fmt.Println(done)
 	}
 
 	totalsNamesRow, totalsRow := GenerateRowTotals()
