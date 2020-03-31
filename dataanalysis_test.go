@@ -5,7 +5,19 @@ import (
 	"testing"
 )
 
+type StubCSVFiles struct {
+	fileOne string
+	fileTwo string
+}
+
 func TestCheckCSV(t *testing.T) {
+	send := StubCSVFiles{
+		"testOne.csv",
+		"testTwo.csv",
+	}
+
+	server := &DataAnalysisServer{}
+
 	t.Run("file creation success", func(t *testing.T) {
 		err := CheckCSV("testOne.csv", "testTwo.csv")
 

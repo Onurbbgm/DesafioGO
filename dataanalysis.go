@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/gabriel-vasile/mimetype"
 )
 
 type Err string
@@ -74,6 +77,74 @@ var (
 	totalErrTD = 0
 	totalData  = 0
 )
+
+type DataAnalysisServer struct {
+}
+
+func (d *DataAnalysisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	switch r.Method {
+	case http.MethodPost:
+		getFiles(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func getFiles(w http.ResponseWriter, r *http.Request) {
+	r.ParseMultipartForm(10 << 20)
+
+	files := r.MultipartForm
+
+	if len(files.File) != 2 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Needs to get 2 files got ", len(files.File))
+		//log.Fatalf("Needs to get 2 files got %d", len(files.File))
+		return
+	}
+	for _, v := range files.File {
+		for _, f := range v {
+			file, err := f.Open()
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, "Got error ", err.Error())
+				return
+			}
+			defer file.Close()
+
+			mime, err := mimetype.DetectReader(file)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, "Got error ", err.Error())
+				return
+			}
+			fmt.Println(mime.Extension())
+			if mime.Extension() != ".csv" {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Println(mime)
+				fmt.Fprint(w, "Expected contentType text/csv, got ", mime)
+				return
+			}
+		}
+	}
+}
+
+func getFileContentType(out *os.File) (string, error) {
+
+	// Only the first 512 bytes are used to sniff the content type.
+	buffer := make([]byte, 512)
+
+	_, err := out.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+
+	// Use the net/http package's handy DectectContentType function. Always returns a valid
+	// content-type by returning "application/octet-stream" if no others seemed to match.
+	contentType := http.DetectContentType(buffer)
+
+	return contentType, nil
+}
 
 var wg sync.WaitGroup
 var mu = sync.Mutex{}
@@ -311,16 +382,16 @@ func lineCounter(r *csv.Reader) (int, error) {
 	}
 }
 
-func main() {
-	//Test data set
-	//err := CheckCSV("testOne.csv", "testTwo.csv")
-	//Official data set
-	err := CheckCSV("clientData.csv", "ourData.csv")
-	if err != nil {
-		fmt.Println(err)
-	}
-	ResetTotals()
-}
+// func main() {
+// 	//Test data set
+// 	//err := CheckCSV("testOne.csv", "testTwo.csv")
+// 	//Official data set
+// 	err := CheckCSV("clientData.csv", "ourData.csv")
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	ResetTotals()
+// }
 
 func (e Err) Error() string {
 	return string(e)
