@@ -49,10 +49,6 @@ const (
 	ErrTerminationDateNotMatch  = Err("Termination date does not match in both datasets")
 )
 
-// type ResultCSV struct {
-// 	mu sync.Mutex
-// }
-
 //Errors a dictionary for the error for the appropriated column
 var Errors = map[string]Err{
 	MedicalPlan:      ErrMedicalPlanNotMatch,
@@ -78,6 +74,9 @@ var (
 	totalErrTD = 0
 	totalData  = 0
 )
+
+var wg sync.WaitGroup
+var mu = sync.Mutex{}
 
 func CheckCSV(fileOne, fileTwo string) error {
 	csvOne, errOpen := os.Open(fileOne)
@@ -135,97 +134,22 @@ func CheckCSV(fileOne, fileTwo string) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
 	wg.Add(numLinesOne)
-	var mu = sync.Mutex{}
-	count := 0
+
+	//count := 0
+	done := false
 	for {
-		errChan := make(chan error)
 
-		//done := false
-		// done := make(chan resultDone)
-		errChan = nil
-		go func(w *sync.WaitGroup) {
-			mu.Lock()
-			defer mu.Unlock()
-
-			lineOne, err := readerOne.Read()
-			if err == io.EOF {
-				fmt.Println("aqui 1")
-				fmt.Println(count)
-				count = 1
-				fmt.Println(count)
-				// done <- resultDone{true}
-				// fmt.Println(done)
-				//errChan <- nil
-				//close(errChan)
-
-				// done = true
-				//close(done)
-				//w.Done()
-				return
-			} else if err != nil {
-				errChan <- nil
-				close(errChan)
-				//w.Done()
-				return
+		select {
+		case resultRoutine := <-readAndWriteLines(readerOne, readerTwo, writer):
+			if resultRoutine.bool == true {
+				done = true
 			}
-			// fmt.Println("chegou aqui")
-			lineTwo, err := readerTwo.Read()
-			if err == io.EOF {
-				fmt.Println("aqui 2")
-				fmt.Println(count)
-				errChan <- nil
-				close(errChan)
-				// done <- true
-				// close(done)
-				//w.Done()
-				return
-			} else if err != nil {
-				errChan <- err
-				close(errChan)
-				//w.Done()
-				return
-			}
-			// fmt.Println("chegou aqui 2")
-			var row []string
-			for i := 1; i <= 9; i++ {
-				//fmt.Println("chegou aqui 3")
-				result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
-				if errData == nil {
-					row = append(row, result)
-				} else {
-					addTotal(i)
-					row = append(row, errData.Error())
-				}
-			}
-			writer.Write(row)
-			//count++
-			//fmt.Println(count)
-			w.Done()
-			//mu.Unlock()
-		}(&wg)
-
-		if errChan != nil {
-			return ErrReadinLines
 		}
-		// wg.Wait()
-		// fmt.Println(done)
-		// resultFinal := <-done
-		if count == 1 {
-			// fmt.Println(count)
+
+		if done {
 			break
 		}
-		// finish := <-done
-		// finish := false
-		// // select {
-		// // case done <- true:
-		// // 	finish = true
-		// // }
-		// if finish {
-		// 	break
-		// }
-		//fmt.Println(done)
 	}
 
 	totalsNamesRow, totalsRow := GenerateRowTotals()
@@ -234,6 +158,46 @@ func CheckCSV(fileOne, fileTwo string) error {
 	writer.Write(totalsRow)
 
 	return nil
+}
+
+func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) chan resultDone {
+	ch := make(chan resultDone)
+	// ch := make(chan struct{})
+	go func(w *sync.WaitGroup) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		lineOne, err := readerOne.Read()
+		if err == io.EOF {
+			fmt.Println("aqui 1")
+			ch <- resultDone{true}
+			close(ch)
+			return
+		} else if err != nil {
+			return
+		}
+		lineTwo, err := readerTwo.Read()
+		if err == io.EOF {
+			return
+		} else if err != nil {
+			return
+		}
+		var row []string
+		for i := 1; i <= 9; i++ {
+			result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
+			if errData == nil {
+				row = append(row, result)
+			} else {
+				addTotal(i)
+				row = append(row, errData.Error())
+			}
+		}
+		writer.Write(row)
+		w.Done()
+		ch <- resultDone{false}
+		close(ch)
+	}(&wg)
+	return ch
 }
 
 //VerifyData gets twi values and checks if they are the same or gives an error of the appropriated type
