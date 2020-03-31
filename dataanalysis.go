@@ -169,17 +169,24 @@ func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) cha
 
 		lineOne, err := readerOne.Read()
 		if err == io.EOF {
-			fmt.Println("aqui 1")
 			ch <- resultDone{true}
 			close(ch)
 			return
 		} else if err != nil {
+			ch <- resultDone{false}
+			close(ch)
+			log.Fatalf(err.Error())
 			return
 		}
 		lineTwo, err := readerTwo.Read()
 		if err == io.EOF {
+			ch <- resultDone{true}
+			close(ch)
 			return
 		} else if err != nil {
+			ch <- resultDone{false}
+			close(ch)
+			log.Fatalf(err.Error())
 			return
 		}
 		var row []string
