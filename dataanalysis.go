@@ -13,6 +13,10 @@ import (
 
 type Err string
 
+type resultDone struct {
+	bool
+}
+
 //Columns names e success message
 const (
 	Success          = "Ok"
@@ -137,20 +141,23 @@ func CheckCSV(fileOne, fileTwo string) error {
 	count := 0
 	for {
 		errChan := make(chan error)
-		//done := make(chan bool)
-		// done <- false
-		// done := false
+
+		//done := false
+		// done := make(chan resultDone)
 		errChan = nil
 		go func(w *sync.WaitGroup) {
 			mu.Lock()
 			defer mu.Unlock()
+
 			lineOne, err := readerOne.Read()
 			if err == io.EOF {
 				fmt.Println("aqui 1")
 				fmt.Println(count)
-				count++
+				count = 1
 				fmt.Println(count)
-				errChan <- io.EOF
+				// done <- resultDone{true}
+				// fmt.Println(done)
+				//errChan <- nil
 				//close(errChan)
 
 				// done = true
@@ -160,7 +167,7 @@ func CheckCSV(fileOne, fileTwo string) error {
 			} else if err != nil {
 				errChan <- nil
 				close(errChan)
-				w.Done()
+				//w.Done()
 				return
 			}
 			// fmt.Println("chegou aqui")
@@ -172,12 +179,12 @@ func CheckCSV(fileOne, fileTwo string) error {
 				close(errChan)
 				// done <- true
 				// close(done)
-				w.Done()
+				//w.Done()
 				return
 			} else if err != nil {
 				errChan <- err
 				close(errChan)
-				w.Done()
+				//w.Done()
 				return
 			}
 			// fmt.Println("chegou aqui 2")
@@ -202,9 +209,11 @@ func CheckCSV(fileOne, fileTwo string) error {
 		if errChan != nil {
 			return ErrReadinLines
 		}
-
+		// wg.Wait()
+		// fmt.Println(done)
+		// resultFinal := <-done
 		if count == 1 {
-			fmt.Println(count)
+			// fmt.Println(count)
 			break
 		}
 		// finish := <-done
