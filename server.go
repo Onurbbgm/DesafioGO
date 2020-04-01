@@ -27,54 +27,63 @@ func getFiles(w http.ResponseWriter, r *http.Request) {
 
 	files := r.MultipartForm
 
-	if len(files.File) != 2 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Needs to get 2 files got ", len(files.File))
-		//log.Fatalf("Needs to get 2 files got %d", len(files.File))
+	if !CheckNumberOfFiles(len(files.File), w) {
 		return
 	}
-	// var filesCSV []os.FileInfo
+
 	var fileNames []string
 	for key, v := range files.File {
 		for _, f := range v {
 			file, err := f.Open()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprint(w, "Got error ", err.Error())
+			if CheckErrorExist(err, w, "Got error") {
 				return
 			}
-			//defer file.Close()
 
 			mime, err := mimetype.DetectReader(file)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprint(w, "Got error ", err.Error())
+			if CheckErrorExist(err, w, "Got error") {
 				return
 			}
-			fmt.Println(mime.Extension())
-			if mime.Extension() != ".csv" {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Println(mime)
-				fmt.Fprint(w, "Expected contentType text/csv, got ", mime)
+
+			if !CheckFileExtension(mime.Extension(), w) {
 				return
 			}
 			file.Close()
-			//filesCSV = append(filesCSV, file)
 		}
 		fileNames = append(fileNames, key)
 	}
-	fileOne, err := files.File[fileNames[0]][0].Open()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
-		return
-	}
-	fileTwo, err := files.File[fileNames[1]][0].Open()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
-		return
-	}
+
+	fileOne, _ := files.File[fileNames[0]][0].Open()
+	fileTwo, _ := files.File[fileNames[1]][0].Open()
 
 	CheckCSV(fileOne, fileTwo, w)
+}
+
+//CheckFileExtension check if it is a validate extension
+func CheckFileExtension(extension string, w http.ResponseWriter) bool {
+	if extension != ".csv" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Expected contentType text/csv, got ", extension)
+		return false
+	}
+	return true
+}
+
+//CheckErrorExist se if there is an error e send response
+func CheckErrorExist(err error, w http.ResponseWriter, text string) bool {
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, text+err.Error())
+		return true
+	}
+	return false
+}
+
+//CheckNumberOfFiles see if got the rigth number of files to check
+func CheckNumberOfFiles(number int, w http.ResponseWriter) bool {
+	if number != 2 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Needs to get 2 files got ", number)
+		return false
+	}
+	return true
 }

@@ -83,19 +83,9 @@ var mu = sync.Mutex{}
 
 //CheckCSV gets two CSV files and compares them, creates a result CSV with a report of mismatched information
 func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
-	//csvOne, errOpen := fileOne.Open() //os.Open(fileOne)
-
-	// if errOpen != nil {
-	// 	return errOpen
-	// }
-
-	//csvTwo, errOpen := fileTwo.Open() //os.Open(fileTwo)
-	// if errOpen != nil {
-	// 	return errOpen
-	// }
 	ResetTotals()
 	resultCSV, errCreate := os.Create("result.csv")
-	if errCreate != nil {
+	if CheckErrorExist(errCreate, w, "Got error ") {
 		fmt.Println(errCreate)
 		return errCreate
 	}
@@ -104,16 +94,13 @@ func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
 	readerTwo := csv.NewReader(bufio.NewReader(csvTwo))
 
 	numLinesOne, err := lineCounter(readerOne)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
+	if CheckErrorExist(err, w, "Got error ") {
 		fmt.Println(err)
 		return err
 	}
+
 	numLinesTwo, err := lineCounter(readerTwo)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
+	if CheckErrorExist(err, w, "Got error ") {
 		fmt.Println(err)
 		return err
 	}
