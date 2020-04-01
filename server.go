@@ -12,7 +12,6 @@ type DataAnalysisServer struct {
 }
 
 func (d *DataAnalysisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	switch r.Method {
 	case http.MethodPost:
 		getFiles(w, r)

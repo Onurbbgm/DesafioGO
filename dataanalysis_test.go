@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,12 +10,6 @@ import (
 )
 
 func TestCheckCSV(t *testing.T) {
-	// send := StubCSVFiles{
-	// 	"testOne.csv",
-	// 	"testTwo.csv",
-	// }
-
-	// server := &DataAnalysisServer{}
 
 	t.Run("file creation success", func(t *testing.T) {
 		fileOne, err := os.Open("testOne.csv")
@@ -113,6 +108,33 @@ func TestVerifyData(t *testing.T) {
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
+	})
+}
+
+func TestServer(t *testing.T) {
+	t.Run("send wrong number of file(s)", func(t *testing.T) {
+		numer := 1
+		response := httptest.NewRecorder()
+		CheckNumberOfFiles(numer, response)
+
+		assertStatus(t, response.Code, http.StatusBadRequest)
+		concatenated := fmt.Sprint("Needs to get 2 files got ", numer)
+		assertResponseBody(t, response.Body.String(), concatenated)
+
+	})
+	t.Run("send file of wrong type", func(t *testing.T) {
+		response := httptest.NewRecorder()
+		extension := ".txt"
+		CheckFileExtension(extension, response)
+		assertStatus(t, response.Code, http.StatusBadRequest)
+		assertResponseBody(t, response.Body.String(), "Expected contentType text/csv, got "+extension)
+	})
+	t.Run("send GET to server", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/checkFiles/", nil)
+		response := httptest.NewRecorder()
+		server := &DataAnalysisServer{}
+		server.ServeHTTP(response, req)
+		assertStatus(t, response.Code, http.StatusMethodNotAllowed)
 	})
 }
 
