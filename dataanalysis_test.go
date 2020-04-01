@@ -153,12 +153,10 @@ func assertStatus(t *testing.T, got, want int) {
 }
 
 func BenchmarkCheckCVS(b *testing.B) {
-	// CheckCSV("ourData.csv", "clientData.csv")
-	// for i := 0; i < len(urls); i++ {
-	// 	urls[i] = "a url"
-	// }
+	fileOne, _ := os.Open("testOne.csv")
+	fileTwo, _ := os.Open("testTwo.csv")
 
-	// for i := 0; i < b.N; i++ {
-	// 	CheckWebsites(slowStubWebsiteChecker, urls)
-	// }
+	response := httptest.NewRecorder()
+
+	CheckCSV(fileOne, fileTwo, response)
 }

@@ -21,6 +21,11 @@ type resultDone struct {
 	bool
 }
 
+type resultDone2 struct {
+	row []string
+	bool
+}
+
 //Columns names e success message
 const (
 	Success          = "Ok"
@@ -143,17 +148,22 @@ func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
 	}
 	wg.Add(numLinesOne)
 
-	done := false
+	resultChannel := make(chan resultDone2)
+
 	for {
-		select {
-		case resultRoutine := <-readAndWriteLines(readerOne, readerTwo, writer):
-			if resultRoutine.bool == true {
-				done = true
-			}
-		}
-		if done {
+
+		go func() {
+			resultChannel <- readAndWriteLines(readerOne, readerTwo, writer)
+		}()
+
+		res := <-resultChannel
+
+		if res.bool {
 			break
 		}
+
+		writer.Write(res.row)
+
 	}
 
 	totalsNamesRow, totalsRow := GenerateRowTotals()
@@ -166,57 +176,46 @@ func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
 }
 
 //Read the lines from both files, and write the result of the check in the new file
-func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) chan resultDone {
-	ch := make(chan resultDone)
+func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) resultDone2 /*bool*/ {
 
-	// ch := make(chan struct{})
-	go func(w *sync.WaitGroup) {
-		mu.Lock()
-		defer mu.Unlock()
+	var row []string
+	results := resultDone2{row, false}
+	lineOne, err := readerOne.Read()
+	if err == io.EOF {
+		results.bool = true
+		return results
+	} else if err != nil {
+		log.Fatalf(err.Error())
+		return results
+	}
+	lineTwo, err := readerTwo.Read()
+	if err == io.EOF {
+		results.bool = true
+		return results
+	} else if err != nil {
+		log.Fatalf(err.Error())
+		return results
+	}
+	//var row []string
+	row = append(row, "Employee "+lineOne[3]+" with relationship to claimant "+lineOne[5]+" has the following problems")
+	for i := 1; i <= 9; i++ {
+		columName := getColumn(i)
+		if columName == EmployeeName || columName == ClaimantName {
+			continue
+		}
+		result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
+		if errData == nil {
+			row = append(row, result)
+		} else {
+			addTotal(i)
+			row = append(row, errData.Error()+": got "+lineOne[i]+" and "+lineTwo[i])
+		}
+	}
 
-		lineOne, err := readerOne.Read()
-		if err == io.EOF {
-			ch <- resultDone{true}
-			close(ch)
-			return
-		} else if err != nil {
-			ch <- resultDone{false}
-			close(ch)
-			log.Fatalf(err.Error())
-			return
-		}
-		lineTwo, err := readerTwo.Read()
-		if err == io.EOF {
-			ch <- resultDone{true}
-			close(ch)
-			return
-		} else if err != nil {
-			ch <- resultDone{false}
-			close(ch)
-			log.Fatalf(err.Error())
-			return
-		}
-		var row []string
-		row = append(row, "Employee "+lineOne[3]+" with relationship to claimant "+lineOne[5]+" has the following problems")
-		for i := 1; i <= 9; i++ {
-			columName := getColumn(i)
-			if columName == EmployeeName || columName == ClaimantName {
-				continue
-			}
-			result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
-			if errData == nil {
-				row = append(row, result)
-			} else {
-				addTotal(i)
-				row = append(row, errData.Error()+": got "+lineOne[i]+" and "+lineTwo[i])
-			}
-		}
-		writer.Write(row)
-		w.Done()
-		ch <- resultDone{false}
-		close(ch)
-	}(&wg)
-	return ch
+	results.bool = false
+	results.row = row
+
+	return results
 }
 
 //VerifyData gets two values and checks if they are the same or give an error of the appropriated type
@@ -323,17 +322,6 @@ func lineCounter(r *csv.Reader) (int, error) {
 		}
 	}
 }
-
-// func main() {
-// 	//Test data set
-// 	//err := CheckCSV("testOne.csv", "testTwo.csv")
-// 	//Official data set
-// 	err := CheckCSV("clientData.csv", "ourData.csv")
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-// 	ResetTotals()
-// }
 
 func (e Err) Error() string {
 	return string(e)
