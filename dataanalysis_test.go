@@ -11,12 +11,12 @@ type StubCSVFiles struct {
 }
 
 func TestCheckCSV(t *testing.T) {
-	send := StubCSVFiles{
-		"testOne.csv",
-		"testTwo.csv",
-	}
+	// send := StubCSVFiles{
+	// 	"testOne.csv",
+	// 	"testTwo.csv",
+	// }
 
-	server := &DataAnalysisServer{}
+	// server := &DataAnalysisServer{}
 
 	t.Run("file creation success", func(t *testing.T) {
 		err := CheckCSV("testOne.csv", "testTwo.csv")
@@ -110,4 +110,15 @@ func TestVerifyData(t *testing.T) {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	})
+}
+
+func BenchmarkCheckCVS(b *testing.B) {
+	CheckCSV("ourData.csv", "clientData.csv")
+	// for i := 0; i < len(urls); i++ {
+	// 	urls[i] = "a url"
+	// }
+
+	// for i := 0; i < b.N; i++ {
+	// 	CheckWebsites(slowStubWebsiteChecker, urls)
+	// }
 }

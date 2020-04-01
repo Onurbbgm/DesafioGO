@@ -68,9 +68,9 @@ var Errors = map[string]Err{
 var (
 	totalErrMP = 0
 	totalErrDP = 0
-	totalErrEN = 0
-	totalErrL  = 0
-	totalErrCN = 0
+	//totalErrEN = 0
+	totalErrL = 0
+	//totalErrCN = 0
 	totalErrRT = 0
 	totalErrG  = 0
 	totalErrED = 0
@@ -193,7 +193,7 @@ func CheckCSV(fileOne, fileTwo string) error {
 	writer := csv.NewWriter(resultCSV)
 	defer writer.Flush()
 
-	firstRow := []string{MedicalPlan, DentalPlan, EmployeeName, Language, ClaimantName, RelationshipType, Gender, EffectiveDate, TerminationDate}
+	firstRow := []string{"", MedicalPlan, DentalPlan, Language, RelationshipType, Gender, EffectiveDate, TerminationDate}
 	writer.Write(firstRow)
 
 	//Jump first line of both files
@@ -233,6 +233,7 @@ func CheckCSV(fileOne, fileTwo string) error {
 
 func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) chan resultDone {
 	ch := make(chan resultDone)
+
 	// ch := make(chan struct{})
 	go func(w *sync.WaitGroup) {
 		mu.Lock()
@@ -261,7 +262,12 @@ func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) cha
 			return
 		}
 		var row []string
+		row = append(row, "Employee "+lineOne[3]+" with relationship to claimant "+lineOne[5]+" has the following problems")
 		for i := 1; i <= 9; i++ {
+			columName := getColumn(i)
+			if columName == EmployeeName || columName == ClaimantName {
+				continue
+			}
 			result, errData := VerifyData(lineOne[i], lineTwo[i], getColumn(i))
 			if errData == nil {
 				row = append(row, result)
@@ -326,12 +332,12 @@ func addTotal(column int) {
 		totalErrMP++
 	case 2:
 		totalErrDP++
-	case 3:
-		totalErrEN++
+	// case 3:
+	// 	totalErrEN++
 	case 4:
 		totalErrL++
-	case 5:
-		totalErrCN++
+	// case 5:
+	// 	totalErrCN++
 	case 6:
 		totalErrRT++
 	case 7:
@@ -344,17 +350,17 @@ func addTotal(column int) {
 }
 
 func GenerateRowTotals() ([]string, []string) {
-	totalsNamesRow := []string{TotalErrors + MedicalPlan, TotalErrors + DentalPlan, TotalErrors + EmployeeName, TotalErrors + Language, TotalErrors + ClaimantName, TotalErrors + RelationshipType, TotalErrors + Gender, TotalErrors + EffectiveDate, TotalErrors + TerminationDate}
-	totalsRow := []string{stringFormatTotal(totalErrMP), stringFormatTotal(totalErrDP), stringFormatTotal(totalErrEN), stringFormatTotal(totalErrL), stringFormatTotal(totalErrCN), stringFormatTotal(totalErrRT), stringFormatTotal(totalErrG), stringFormatTotal(totalErrED), stringFormatTotal(totalErrTD)}
+	totalsNamesRow := []string{"", TotalErrors + MedicalPlan, TotalErrors + DentalPlan, TotalErrors + Language, TotalErrors + RelationshipType, TotalErrors + Gender, TotalErrors + EffectiveDate, TotalErrors + TerminationDate}
+	totalsRow := []string{"", stringFormatTotal(totalErrMP), stringFormatTotal(totalErrDP), stringFormatTotal(totalErrL), stringFormatTotal(totalErrRT), stringFormatTotal(totalErrG), stringFormatTotal(totalErrED), stringFormatTotal(totalErrTD)}
 	return totalsNamesRow, totalsRow
 }
 
 func ResetTotals() {
 	totalErrMP = 0
 	totalErrDP = 0
-	totalErrEN = 0
+	//totalErrEN = 0
 	totalErrL = 0
-	totalErrCN = 0
+	//totalErrCN = 0
 	totalErrRT = 0
 	totalErrG = 0
 	totalErrED = 0
