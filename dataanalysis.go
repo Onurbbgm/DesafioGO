@@ -16,6 +16,7 @@ import (
 //Err quick error mesage generator
 type Err string
 
+//Check when sync is done
 type resultDone struct {
 	bool
 }
@@ -164,6 +165,7 @@ func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
 	return nil
 }
 
+//Read the lines from both files, and write the result of the check in the new file
 func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) chan resultDone {
 	ch := make(chan resultDone)
 
