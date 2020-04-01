@@ -273,7 +273,7 @@ func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) cha
 				row = append(row, result)
 			} else {
 				addTotal(i)
-				row = append(row, errData.Error())
+				row = append(row, errData.Error()+": got "+lineOne[i]+" and "+lineTwo[i])
 			}
 		}
 		writer.Write(row)
