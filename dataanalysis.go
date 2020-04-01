@@ -11,8 +11,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-
-	"github.com/gabriel-vasile/mimetype"
 )
 
 //Err quick error mesage generator
@@ -83,80 +81,8 @@ var (
 var wg sync.WaitGroup
 var mu = sync.Mutex{}
 
-//DataAnalysisServer setup of the server
-type DataAnalysisServer struct {
-}
-
-func (d *DataAnalysisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	switch r.Method {
-	case http.MethodPost:
-		getFiles(w, r)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-}
-
-//Get files and check if they are valid in server request
-func getFiles(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(10 << 20)
-
-	files := r.MultipartForm
-
-	if len(files.File) != 2 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Needs to get 2 files got ", len(files.File))
-		//log.Fatalf("Needs to get 2 files got %d", len(files.File))
-		return
-	}
-	// var filesCSV []os.FileInfo
-	var fileNames []string
-	for key, v := range files.File {
-		for _, f := range v {
-			file, err := f.Open()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprint(w, "Got error ", err.Error())
-				return
-			}
-			//defer file.Close()
-
-			mime, err := mimetype.DetectReader(file)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprint(w, "Got error ", err.Error())
-				return
-			}
-			fmt.Println(mime.Extension())
-			if mime.Extension() != ".csv" {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Println(mime)
-				fmt.Fprint(w, "Expected contentType text/csv, got ", mime)
-				return
-			}
-			file.Close()
-			//filesCSV = append(filesCSV, file)
-		}
-		fileNames = append(fileNames, key)
-	}
-	fileOne, err := files.File[fileNames[0]][0].Open()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
-		return
-	}
-	fileTwo, err := files.File[fileNames[1]][0].Open()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Got error ", err.Error())
-		return
-	}
-
-	CheckCSV(fileOne, fileTwo)
-}
-
 //CheckCSV gets two CSV files and compares them, creates a result CSV with a report of mismatched information
-func CheckCSV(csvOne, csvTwo multipart.File) error {
+func CheckCSV(csvOne, csvTwo multipart.File, w http.ResponseWriter) error {
 	//csvOne, errOpen := fileOne.Open() //os.Open(fileOne)
 
 	// if errOpen != nil {
@@ -167,7 +93,7 @@ func CheckCSV(csvOne, csvTwo multipart.File) error {
 	// if errOpen != nil {
 	// 	return errOpen
 	// }
-
+	ResetTotals()
 	resultCSV, errCreate := os.Create("result.csv")
 	if errCreate != nil {
 		fmt.Println(errCreate)
@@ -179,11 +105,15 @@ func CheckCSV(csvOne, csvTwo multipart.File) error {
 
 	numLinesOne, err := lineCounter(readerOne)
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
 		fmt.Println(err)
 		return err
 	}
 	numLinesTwo, err := lineCounter(readerTwo)
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
 		fmt.Println(err)
 		return err
 	}
@@ -194,6 +124,8 @@ func CheckCSV(csvOne, csvTwo multipart.File) error {
 	csvTwo.Seek(0, io.SeekStart)
 
 	if numLinesOne != numLinesTwo {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", ErrNumberOfLines)
 		fmt.Println(ErrNumberOfLines)
 		return ErrNumberOfLines
 	}
@@ -210,41 +142,38 @@ func CheckCSV(csvOne, csvTwo multipart.File) error {
 
 	//Jump first line of both files
 	if _, err := readerOne.Read(); err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
 		return err
 	}
 
 	if _, err := readerTwo.Read(); err != nil {
 		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
 		return err
 	}
-	// fmt.Println("Chegou aqui")
 	wg.Add(numLinesOne)
 
-	//count := 0
 	done := false
 	for {
-		// fmt.Println("Chegou nessse ponto")
 		select {
 		case resultRoutine := <-readAndWriteLines(readerOne, readerTwo, writer):
 			if resultRoutine.bool == true {
 				done = true
 			}
 		}
-		// fmt.Println("Chegou outro ponto")
 		if done {
-			// fmt.Println("Parou")
 			break
 		}
 	}
 
-	// fmt.Println("Comecou Escrever")
 	totalsNamesRow, totalsRow := GenerateRowTotals()
 	writer.Write([]string{"", "", "", "", "", "", "", "", ""})
 	writer.Write(totalsNamesRow)
 	writer.Write(totalsRow)
-	ResetTotals()
-	//fmt.Println("Terminou de escrever")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "File result created with report.")
 	return nil
 }
 
@@ -378,9 +307,7 @@ func GenerateRowTotals() ([]string, []string) {
 func ResetTotals() {
 	totalErrMP = 0
 	totalErrDP = 0
-	//totalErrEN = 0
 	totalErrL = 0
-	//totalErrCN = 0
 	totalErrRT = 0
 	totalErrG = 0
 	totalErrED = 0

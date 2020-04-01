@@ -1,14 +1,12 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 )
-
-type StubCSVFiles struct {
-	fileOne string
-	fileTwo string
-}
 
 func TestCheckCSV(t *testing.T) {
 	// send := StubCSVFiles{
@@ -19,38 +17,44 @@ func TestCheckCSV(t *testing.T) {
 	// server := &DataAnalysisServer{}
 
 	t.Run("file creation success", func(t *testing.T) {
-		err := CheckCSV("testOne.csv", "testTwo.csv")
+		fileOne, err := os.Open("testOne.csv")
+		fileTwo, err := os.Open("testTwo.csv")
+		if err != nil {
+			t.Fatalf("Got an error %q and error should have been nil", err)
+		}
+		response := httptest.NewRecorder()
+
+		CheckCSV(fileOne, fileTwo, response)
+
+		assertStatus(t, response.Code, http.StatusOK)
+		assertResponseBody(t, response.Body.String(), "File result created with report.")
+	})
+	t.Run("file wrong number of lines error", func(t *testing.T) {
+		fileOne, err := os.Open("testNumLinesOne.csv")
+		fileTwo, err := os.Open("testNumLinesTwo.csv")
 
 		if err != nil {
 			t.Fatalf("Got an error %q and error should have been nil", err)
 		}
-	})
-	t.Run("file wrong number of lines error", func(t *testing.T) {
-		err := CheckCSV("testNumLinesOne.csv", "testNumLinesTwo.csv")
 
-		if err == nil {
-			t.Fatalf("Expected an error, got nil")
-		}
+		response := httptest.NewRecorder()
+		CheckCSV(fileOne, fileTwo, response)
 
-		if err != ErrNumberOfLines {
-			t.Errorf("got %q, want %q", err, ErrNumberOfLines)
-		}
-	})
-	t.Run("file wrong number of lines error", func(t *testing.T) {
-		err := CheckCSV("testNotExisting.csv", "testNumLinesTwo.csv")
-
-		if err == nil {
-			t.Fatalf("Expected an error, got nil")
-		}
+		assertStatus(t, response.Code, http.StatusBadRequest)
+		assertResponseBody(t, response.Body.String(), "Got error "+ErrNumberOfLines.Error())
 	})
 	t.Run("total errors match", func(t *testing.T) {
-		ResetTotals()
-		err := CheckCSV("testOne.csv", "testTwo.csv")
-		_, got := GenerateRowTotals()
-		want := []string{"", "9/10", "7/10", "7/10", "7/10", "6/10", "10/10", "10/10"}
+		fileOne, err := os.Open("testOne.csv")
+		fileTwo, err := os.Open("testTwo.csv")
 		if err != nil {
 			t.Fatalf("Got an error %q and error should have been nil", err)
 		}
+		response := httptest.NewRecorder()
+
+		CheckCSV(fileOne, fileTwo, response)
+		_, got := GenerateRowTotals()
+		want := []string{"", "9/10", "7/10", "7/10", "7/10", "6/10", "10/10", "10/10"}
+
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v want %v", got, want)
 		}
@@ -112,8 +116,22 @@ func TestVerifyData(t *testing.T) {
 	})
 }
 
+func assertResponseBody(t *testing.T, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("response body is wrong, got %q want %q", got, want)
+	}
+}
+
+func assertStatus(t *testing.T, got, want int) {
+	t.Helper()
+	if got != want {
+		t.Errorf("dig not get correct status, got %d, want %d", got, want)
+	}
+}
+
 func BenchmarkCheckCVS(b *testing.B) {
-	CheckCSV("ourData.csv", "clientData.csv")
+	// CheckCSV("ourData.csv", "clientData.csv")
 	// for i := 0; i < len(urls); i++ {
 	// 	urls[i] = "a url"
 	// }
