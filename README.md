@@ -18,4 +18,4 @@ This will create a result file called ```resul.csv```.
 
 This is the diagram of the system design:
 
-
+![](Diagram.png)
