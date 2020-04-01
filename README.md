@@ -14,4 +14,8 @@ Then you can send the two files with a curl, like this one:
 curl http://localhost:5000/ -F "fileOne=@clientData.csv" -F "fileTwo=@ourData.csv"
 ```
 
-This will create a result file called resul.csv.
+This will create a result file called ```resul.csv```.
+
+This is the diagram of the system design:
+
+
