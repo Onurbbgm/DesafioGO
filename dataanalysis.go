@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 )
 
+//Err quick error mesage generator
 type Err string
 
 type resultDone struct {
@@ -65,12 +67,11 @@ var Errors = map[string]Err{
 	TerminationDate:  ErrTerminationDateNotMatch,
 }
 
+//Counters for total of errors in files
 var (
 	totalErrMP = 0
 	totalErrDP = 0
-	//totalErrEN = 0
-	totalErrL = 0
-	//totalErrCN = 0
+	totalErrL  = 0
 	totalErrRT = 0
 	totalErrG  = 0
 	totalErrED = 0
@@ -78,6 +79,11 @@ var (
 	totalData  = 0
 )
 
+//Variables for concurrency use
+var wg sync.WaitGroup
+var mu = sync.Mutex{}
+
+//DataAnalysisServer setup of the server
 type DataAnalysisServer struct {
 }
 
@@ -91,6 +97,7 @@ func (d *DataAnalysisServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//Get files and check if they are valid in server request
 func getFiles(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(10 << 20)
 
@@ -102,7 +109,9 @@ func getFiles(w http.ResponseWriter, r *http.Request) {
 		//log.Fatalf("Needs to get 2 files got %d", len(files.File))
 		return
 	}
-	for _, v := range files.File {
+	// var filesCSV []os.FileInfo
+	var fileNames []string
+	for key, v := range files.File {
 		for _, f := range v {
 			file, err := f.Open()
 			if err != nil {
@@ -110,7 +119,7 @@ func getFiles(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprint(w, "Got error ", err.Error())
 				return
 			}
-			defer file.Close()
+			//defer file.Close()
 
 			mime, err := mimetype.DetectReader(file)
 			if err != nil {
@@ -125,43 +134,43 @@ func getFiles(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprint(w, "Expected contentType text/csv, got ", mime)
 				return
 			}
+			file.Close()
+			//filesCSV = append(filesCSV, file)
 		}
+		fileNames = append(fileNames, key)
 	}
-}
-
-func getFileContentType(out *os.File) (string, error) {
-
-	// Only the first 512 bytes are used to sniff the content type.
-	buffer := make([]byte, 512)
-
-	_, err := out.Read(buffer)
+	fileOne, err := files.File[fileNames[0]][0].Open()
 	if err != nil {
-		return "", err
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
+		return
+	}
+	fileTwo, err := files.File[fileNames[1]][0].Open()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Got error ", err.Error())
+		return
 	}
 
-	// Use the net/http package's handy DectectContentType function. Always returns a valid
-	// content-type by returning "application/octet-stream" if no others seemed to match.
-	contentType := http.DetectContentType(buffer)
-
-	return contentType, nil
+	CheckCSV(fileOne, fileTwo)
 }
 
-var wg sync.WaitGroup
-var mu = sync.Mutex{}
+//CheckCSV gets two CSV files and compares them, creates a result CSV with a report of mismatched information
+func CheckCSV(csvOne, csvTwo multipart.File) error {
+	//csvOne, errOpen := fileOne.Open() //os.Open(fileOne)
 
-func CheckCSV(fileOne, fileTwo string) error {
-	csvOne, errOpen := os.Open(fileOne)
-	if errOpen != nil {
-		return errOpen
-	}
+	// if errOpen != nil {
+	// 	return errOpen
+	// }
 
-	csvTwo, errOpen := os.Open(fileTwo)
-	if errOpen != nil {
-		return errOpen
-	}
+	//csvTwo, errOpen := fileTwo.Open() //os.Open(fileTwo)
+	// if errOpen != nil {
+	// 	return errOpen
+	// }
 
 	resultCSV, errCreate := os.Create("result.csv")
 	if errCreate != nil {
+		fmt.Println(errCreate)
 		return errCreate
 	}
 
@@ -170,10 +179,12 @@ func CheckCSV(fileOne, fileTwo string) error {
 
 	numLinesOne, err := lineCounter(readerOne)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	numLinesTwo, err := lineCounter(readerTwo)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -183,6 +194,7 @@ func CheckCSV(fileOne, fileTwo string) error {
 	csvTwo.Seek(0, io.SeekStart)
 
 	if numLinesOne != numLinesTwo {
+		fmt.Println(ErrNumberOfLines)
 		return ErrNumberOfLines
 	}
 
@@ -198,36 +210,41 @@ func CheckCSV(fileOne, fileTwo string) error {
 
 	//Jump first line of both files
 	if _, err := readerOne.Read(); err != nil {
+		fmt.Println(err)
 		return err
 	}
 
 	if _, err := readerTwo.Read(); err != nil {
+		fmt.Println(err)
 		return err
 	}
-
+	// fmt.Println("Chegou aqui")
 	wg.Add(numLinesOne)
 
 	//count := 0
 	done := false
 	for {
-
+		// fmt.Println("Chegou nessse ponto")
 		select {
 		case resultRoutine := <-readAndWriteLines(readerOne, readerTwo, writer):
 			if resultRoutine.bool == true {
 				done = true
 			}
 		}
-
+		// fmt.Println("Chegou outro ponto")
 		if done {
+			// fmt.Println("Parou")
 			break
 		}
 	}
 
+	// fmt.Println("Comecou Escrever")
 	totalsNamesRow, totalsRow := GenerateRowTotals()
 	writer.Write([]string{"", "", "", "", "", "", "", "", ""})
 	writer.Write(totalsNamesRow)
 	writer.Write(totalsRow)
-
+	ResetTotals()
+	//fmt.Println("Terminou de escrever")
 	return nil
 }
 
@@ -284,7 +301,7 @@ func readAndWriteLines(readerOne, readerTwo *csv.Reader, writer *csv.Writer) cha
 	return ch
 }
 
-//VerifyData gets twi values and checks if they are the same or gives an error of the appropriated type
+//VerifyData gets two values and checks if they are the same or give an error of the appropriated type
 func VerifyData(valueOne, valoueTwo string, dataType string) (string, error) {
 	_, found := Errors[dataType]
 	if !found {
@@ -296,10 +313,12 @@ func VerifyData(valueOne, valoueTwo string, dataType string) (string, error) {
 	return "", getErrorMessage(dataType)
 }
 
+//Get the error from the spcefic data type in Errors map
 func getErrorMessage(dataType string) error {
 	return Errors[dataType]
 }
 
+//Get the name of the column according to the number of the column
 func getColumn(num int) string {
 	switch num {
 	case 1:
@@ -326,18 +345,15 @@ func getColumn(num int) string {
 	}
 }
 
+//Add to specific count of total erros of the correspondent column
 func addTotal(column int) {
 	switch column {
 	case 1:
 		totalErrMP++
 	case 2:
 		totalErrDP++
-	// case 3:
-	// 	totalErrEN++
 	case 4:
 		totalErrL++
-	// case 5:
-	// 	totalErrCN++
 	case 6:
 		totalErrRT++
 	case 7:
@@ -349,12 +365,16 @@ func addTotal(column int) {
 	}
 }
 
+//GenerateRowTotals create the final two rows that have the total of erros in the file
 func GenerateRowTotals() ([]string, []string) {
+	//Name of each column
 	totalsNamesRow := []string{"", TotalErrors + MedicalPlan, TotalErrors + DentalPlan, TotalErrors + Language, TotalErrors + RelationshipType, TotalErrors + Gender, TotalErrors + EffectiveDate, TotalErrors + TerminationDate}
+	//The number of totals
 	totalsRow := []string{"", stringFormatTotal(totalErrMP), stringFormatTotal(totalErrDP), stringFormatTotal(totalErrL), stringFormatTotal(totalErrRT), stringFormatTotal(totalErrG), stringFormatTotal(totalErrED), stringFormatTotal(totalErrTD)}
 	return totalsNamesRow, totalsRow
 }
 
+//ResetTotals set all total counts back to zero, to read a new file
 func ResetTotals() {
 	totalErrMP = 0
 	totalErrDP = 0

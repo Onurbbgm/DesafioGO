@@ -47,7 +47,7 @@ func TestCheckCSV(t *testing.T) {
 		ResetTotals()
 		err := CheckCSV("testOne.csv", "testTwo.csv")
 		_, got := GenerateRowTotals()
-		want := []string{"9/10", "7/10", "0/10", "7/10", "0/10", "7/10", "6/10", "10/10", "10/10"}
+		want := []string{"", "9/10", "7/10", "7/10", "7/10", "6/10", "10/10", "10/10"}
 		if err != nil {
 			t.Fatalf("Got an error %q and error should have been nil", err)
 		}
